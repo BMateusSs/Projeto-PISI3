@@ -54,6 +54,49 @@ def preprocess_data(df):
     
     return df_processed
 
+def create_filters(df):
+    """Cria filtros interativos"""
+    st.sidebar.header("🔍 Filtros")
+    
+    # Filtro por país
+    paises = ['Todos'] + sorted(df['country'].unique().tolist())
+    pais_selecionado = st.sidebar.selectbox("País:", paises)
+    
+    # Filtro por variedade
+    variedades = ['Todas'] + sorted(df['variety'].unique().tolist())
+    variedade_selecionada = st.sidebar.selectbox("Variedade:", variedades)
+    
+    # Filtro por região
+    if 'region_1' in df.columns:
+        regioes = ['Todas'] + sorted(df['region_1'].dropna().unique().tolist())
+        regiao_selecionada = st.sidebar.selectbox("Região:", regioes)
+    else:
+        regiao_selecionada = 'Todas'
+    
+    # Filtro por província
+    if 'province' in df.columns:
+        provincias = ['Todas'] + sorted(df['province'].dropna().unique().tolist())
+        provincia_selecionada = st.sidebar.selectbox("Província:", provincias)
+    else:
+        provincia_selecionada = 'Todas'
+    
+    # Aplicar filtros
+    df_filtrado = df.copy()
+    
+    if pais_selecionado != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['country'] == pais_selecionado]
+    
+    if variedade_selecionada != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['variety'] == variedade_selecionada]
+    
+    if regiao_selecionada != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['region_1'] == regiao_selecionada]
+    
+    if provincia_selecionada != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['province'] == provincia_selecionada]
+    
+    return df_filtrado
+
 def plot_analise_descricoes(df):
     """Plota análise das descrições"""
     st.subheader("📝 Análise das Descrições")
@@ -242,49 +285,124 @@ def plot_analise_variedades_descricoes(df):
             plt.tight_layout()
             st.pyplot(fig)
 
+def plot_analise_paises(df):
+    """Plota análise por países"""
+    st.subheader("🌍 Análise por Países")
+    
+    # Top países
+    top_paises = df['country'].value_counts().head(15)
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Gráfico de barras dos top países
+    colors = plt.cm.Pastel1(np.linspace(0, 1, len(top_paises)))
+    bars = ax1.bar(range(len(top_paises)), top_paises.values, color=colors)
+    ax1.set_xlabel('País')
+    ax1.set_ylabel('Quantidade de Vinhos')
+    ax1.set_title('Top 15 Países com Mais Vinhos')
+    ax1.set_xticks(range(len(top_paises)))
+    ax1.set_xticklabels(top_paises.index, rotation=45, ha='right')
+    
+    # Adicionar valores nas barras
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2., height + 50,
+                f'{int(height):,}', ha='center', va='bottom', fontsize=8)
+    
+    # Variedades mais comuns por país (top 5 países)
+    top_5_paises = top_paises.head(5).index
+    df_top_paises = df[df['country'].isin(top_5_paises)]
+    
+    # Contar variedades por país
+    variedade_por_pais = df_top_paises.groupby(['country', 'variety']).size().reset_index(name='count')
+    variedade_por_pais = variedade_por_pais.sort_values('count', ascending=False)
+    
+    # Mostrar top variedades para cada país
+    for pais in top_5_paises:
+        top_variedades_pais = variedade_por_pais[variedade_por_pais['country'] == pais].head(5)
+        if not top_variedades_pais.empty:
+            ax2.bar(range(len(top_variedades_pais)), top_variedades_pais['count'], 
+                   label=pais, alpha=0.7)
+    
+    ax2.set_xlabel('Variedades')
+    ax2.set_ylabel('Quantidade')
+    ax2.set_title('Variedades Mais Comuns nos Top 5 Países')
+    ax2.legend()
+    ax2.set_xticks(range(len(top_variedades_pais)))
+    ax2.set_xticklabels(top_variedades_pais['variety'], rotation=45, ha='right')
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Estatísticas dos países
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total de Países", f"{df['country'].nunique()}")
+    with col2:
+        st.metric("País com Mais Vinhos", f"{top_paises.index[0]}")
+    with col3:
+        st.metric("Quantidade do País Líder", f"{top_paises.iloc[0]:,}")
 
-def create_filters(df):
-    """Cria filtros interativos"""
-    st.sidebar.header("🔍 Filtros")
-    
-    # Filtro por país
-    paises = ['Todos'] + sorted(df['country'].unique().tolist())
-    pais_selecionado = st.sidebar.selectbox("País:", paises)
-    
-    # Filtro por variedade
-    variedades = ['Todas'] + sorted(df['variety'].unique().tolist())
-    variedade_selecionada = st.sidebar.selectbox("Variedade:", variedades)
-    
-    # Filtro por região
+def plot_analise_regioes(df):
+    """Plota análise por regiões"""
     if 'region_1' in df.columns:
-        regioes = ['Todas'] + sorted(df['region_1'].dropna().unique().tolist())
-        regiao_selecionada = st.sidebar.selectbox("Região:", regioes)
-    else:
-        regiao_selecionada = 'Todas'
-    
-    # Filtro por província
-    if 'province' in df.columns:
-        provincias = ['Todas'] + sorted(df['province'].dropna().unique().tolist())
-        provincia_selecionada = st.sidebar.selectbox("Província:", provincias)
-    else:
-        provincia_selecionada = 'Todas'
-    
-    # Aplicar filtros
-    df_filtrado = df.copy()
-    
-    if pais_selecionado != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['country'] == pais_selecionado]
-    
-    if variedade_selecionada != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['variety'] == variedade_selecionada]
-    
-    if regiao_selecionada != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['region_1'] == regiao_selecionada]
-    
-    if provincia_selecionada != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['province'] == provincia_selecionada]
-    
-    return df_filtrado
+        st.subheader("🗺️ Análise por Regiões")
+        
+        # Top regiões
+        top_regioes = df['region_1'].value_counts().head(15)
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        
+        # Gráfico de barras das top regiões
+        colors = plt.cm.Set2(np.linspace(0, 1, len(top_regioes)))
+        bars = ax1.bar(range(len(top_regioes)), top_regioes.values, color=colors)
+        ax1.set_xlabel('Região')
+        ax1.set_ylabel('Quantidade de Vinhos')
+        ax1.set_title('Top 15 Regiões com Mais Vinhos')
+        ax1.set_xticks(range(len(top_regioes)))
+        ax1.set_xticklabels(top_regioes.index, rotation=45, ha='right')
+        
+        # Adicionar valores nas barras
+        for i, bar in enumerate(bars):
+            height = bar.get_height()
+            ax1.text(bar.get_x() + bar.get_width()/2., height + 5,
+                    f'{int(height):,}', ha='center', va='bottom', fontsize=8)
+        
+        # Variedades por região (top 5 regiões)
+        top_5_regioes = top_regioes.head(5).index
+        df_top_regioes = df[df['region_1'].isin(top_5_regioes)]
+        
+        # Contar variedades por região
+        variedade_por_regiao = df_top_regioes.groupby(['region_1', 'variety']).size().reset_index(name='count')
+        variedade_por_regiao = variedade_por_regiao.sort_values('count', ascending=False)
+        
+        # Mostrar top variedades para cada região
+        for regiao in top_5_regioes:
+            top_variedades_regiao = variedade_por_regiao[variedade_por_regiao['region_1'] == regiao].head(3)
+            if not top_variedades_regiao.empty:
+                ax2.bar(range(len(top_variedades_regiao)), top_variedades_regiao['count'], 
+                       label=regiao, alpha=0.7)
+        
+        ax2.set_xlabel('Variedades')
+        ax2.set_ylabel('Quantidade')
+        ax2.set_title('Variedades Mais Comuns nas Top 5 Regiões')
+        ax2.legend()
+        ax2.set_xticks(range(len(top_variedades_regiao)))
+        ax2.set_xticklabels(top_variedades_regiao['variety'], rotation=45, ha='right')
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+        
+        # Estatísticas das regiões
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total de Regiões", f"{df['region_1'].nunique()}")
+        with col2:
+            st.metric("Região com Mais Vinhos", f"{top_regioes.index[0]}")
+        with col3:
+            st.metric("Quantidade da Região Líder", f"{top_regioes.iloc[0]:,}")
+
+
 
 
 def main():
@@ -330,6 +448,8 @@ def main():
     plot_analise_variedades(df_filtrado)
     plot_analise_descricoes(df_filtrado)
     plot_analise_variedades_descricoes(df_filtrado)
+    plot_analise_paises(df_filtrado)
+    plot_analise_regioes(df_filtrado)
 
 if __name__ == "__main__":
     main()
