@@ -54,6 +54,50 @@ def preprocess_data(df):
     
     return df_processed
 
+def create_filters(df):
+    """Cria filtros interativos"""
+    st.sidebar.header("🔍 Filtros")
+    
+    # Filtro por país
+    paises = ['Todos'] + sorted(df['country'].unique().tolist())
+    pais_selecionado = st.sidebar.selectbox("País:", paises)
+    
+    # Filtro por variedade
+    variedades = ['Todas'] + sorted(df['variety'].unique().tolist())
+    variedade_selecionada = st.sidebar.selectbox("Variedade:", variedades)
+    
+    # Filtro por região
+    if 'region_1' in df.columns:
+        regioes = ['Todas'] + sorted(df['region_1'].dropna().unique().tolist())
+        regiao_selecionada = st.sidebar.selectbox("Região:", regioes)
+    else:
+        regiao_selecionada = 'Todas'
+    
+    # Filtro por província
+    if 'province' in df.columns:
+        provincias = ['Todas'] + sorted(df['province'].dropna().unique().tolist())
+        provincia_selecionada = st.sidebar.selectbox("Província:", provincias)
+    else:
+        provincia_selecionada = 'Todas'
+    
+    # Aplicar filtros
+    df_filtrado = df.copy()
+    
+    if pais_selecionado != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['country'] == pais_selecionado]
+    
+    if variedade_selecionada != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['variety'] == variedade_selecionada]
+    
+    if regiao_selecionada != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['region_1'] == regiao_selecionada]
+    
+    if provincia_selecionada != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['province'] == provincia_selecionada]
+    
+    return df_filtrado
+
+
 def main():
     st.title("🍷 Análise Exploratória por Descrição de Vinhos")
     st.markdown("---")
@@ -68,6 +112,29 @@ def main():
     df_processed = preprocess_data(df)
     if df_processed is None:
         st.error("Erro no pré-processamento dos dados.")
+        return
+    
+    # Criar filtros
+    df_filtrado = create_filters(df_processed)
+    
+    # Mostrar informações gerais
+    st.header("📋 Visão Geral dos Dados")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total de Vinhos", f"{len(df_filtrado):,}")
+    with col2:
+        st.metric("Países Únicos", f"{df_filtrado['country'].nunique()}")
+    with col3:
+        st.metric("Variedades Únicas", f"{df_filtrado['variety'].nunique()}")
+    with col4:
+        st.metric("Descrições Únicas", f"{df_filtrado['description'].nunique()}")
+    
+    # Mostrar dados filtrados
+    st.write(f"**Dados filtrados:** {len(df_filtrado):,} vinhos")
+    
+    if len(df_filtrado) == 0:
+        st.warning("Nenhum vinho encontrado com os filtros aplicados. Tente ajustar os filtros.")
         return
 
 if __name__ == "__main__":
