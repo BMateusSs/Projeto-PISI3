@@ -54,6 +54,195 @@ def preprocess_data(df):
     
     return df_processed
 
+def plot_analise_descricoes(df):
+    """Plota análise das descrições"""
+    st.subheader("📝 Análise das Descrições")
+    
+    # Preparar texto para análise
+    descricoes = ' '.join(df['description'].dropna().astype(str))
+    
+    # Limpar texto
+    descricoes_limpas = re.sub(r'[^\w\s]', '', descricoes.lower())
+    
+    # Criar wordcloud
+    try:
+        wordcloud = WordCloud(
+            width=800, 
+            height=400, 
+            background_color='white',
+            colormap='Reds',
+            max_words=100
+        ).generate(descricoes_limpas)
+        
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.imshow(wordcloud, interpolation='bilinear')
+        ax.axis('off')
+        ax.set_title('Palavras Mais Frequentes nas Descrições', fontsize=16, pad=20)
+        st.pyplot(fig)
+        
+    except Exception as e:
+        st.warning(f"Não foi possível gerar o wordcloud: {e}")
+    
+    # Análise de palavras por país
+    st.subheader("🔍 Palavras por País")
+    
+    # Top 5 países
+    top_paises = df['country'].value_counts().head(5).index
+    
+    pais_palavras = {}
+    for pais in top_paises:
+        descricoes_pais = ' '.join(
+            df[df['country'] == pais]['description'].dropna().astype(str)
+        )
+        palavras = re.findall(r'\b\w+\b', descricoes_pais.lower())
+        # Remover palavras comuns
+        stop_words = {'the', 'and', 'of', 'to', 'a', 'in', 'is', 'it', 'that', 'with', 'for', 'as', 'on', 'be', 'at', 'this', 'by', 'i', 'you', 'have', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take', 'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also', 'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us'}
+        palavras_filtradas = [p for p in palavras if p not in stop_words and len(p) > 2]
+        pais_palavras[pais] = Counter(palavras_filtradas).most_common(10)
+    
+    # Mostrar palavras por país
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("**Palavras mais frequentes por país:**")
+        for pais, palavras in pais_palavras.items():
+            st.write(f"**{pais}:**")
+            for palavra, freq in palavras[:5]:
+                st.write(f"  - {palavra}: {freq}")
+            st.write("")
+    
+    with col2:
+        # Gráfico de barras das palavras mais comuns do país líder
+        if pais_palavras:
+            pais_lider = list(pais_palavras.keys())[0]
+            palavras, freqs = zip(*pais_palavras[pais_lider][:10])
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            bars = ax.bar(range(len(palavras)), freqs, color=CORES_VINHO['tinto'], alpha=0.7)
+            ax.set_xlabel('Palavras')
+            ax.set_ylabel('Frequência')
+            ax.set_title(f'Top 10 Palavras - {pais_lider}')
+            ax.set_xticks(range(len(palavras)))
+            ax.set_xticklabels(palavras, rotation=45, ha='right')
+            
+            # Adicionar valores nas barras
+            for i, bar in enumerate(bars):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 1,
+                       f'{int(height)}', ha='center', va='bottom', fontsize=8)
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+
+def plot_analise_variedades(df):
+    """Plota análise das variedades de vinho"""
+    st.subheader("🍇 Análise das Variedades de Vinho")
+    
+    # Top variedades
+    top_variedades = df['variety'].value_counts().head(20)
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Gráfico de barras das top variedades
+    colors = plt.cm.Set3(np.linspace(0, 1, len(top_variedades)))
+    bars = ax1.bar(range(len(top_variedades)), top_variedades.values, color=colors)
+    ax1.set_xlabel('Variedade')
+    ax1.set_ylabel('Quantidade de Vinhos')
+    ax1.set_title('Top 20 Variedades Mais Comuns')
+    ax1.set_xticks(range(len(top_variedades)))
+    ax1.set_xticklabels(top_variedades.index, rotation=45, ha='right')
+    
+    # Adicionar valores nas barras
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2., height + 10,
+                f'{int(height):,}', ha='center', va='bottom', fontsize=8)
+    
+    # Distribuição geográfica das top variedades
+    top_5_variedades = top_variedades.head(5).index
+    df_top_variedades = df[df['variety'].isin(top_5_variedades)]
+    
+    # Contar países por variedade
+    pais_por_variedade = df_top_variedades.groupby(['variety', 'country']).size().reset_index(name='count')
+    pais_por_variedade = pais_por_variedade.sort_values('count', ascending=False)
+    
+    # Mostrar top países para cada variedade
+    for variedade in top_5_variedades:
+        top_paises = pais_por_variedade[pais_por_variedade['variety'] == variedade].head(5)
+        if not top_paises.empty:
+            ax2.bar(range(len(top_paises)), top_paises['count'], 
+                   label=variedade, alpha=0.7)
+    
+    ax2.set_xlabel('Países')
+    ax2.set_ylabel('Quantidade')
+    ax2.set_title('Distribuição Geográfica das Top 5 Variedades')
+    ax2.legend()
+    ax2.set_xticks(range(len(top_paises)))
+    ax2.set_xticklabels(top_paises['country'], rotation=45, ha='right')
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Estatísticas das variedades
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total de Variedades", f"{df['variety'].nunique()}")
+    with col2:
+        st.metric("Variedade Mais Comum", f"{top_variedades.index[0]}")
+    with col3:
+        st.metric("Quantidade da Mais Comum", f"{top_variedades.iloc[0]:,}")
+
+def plot_analise_variedades_descricoes(df):
+    """Plota análise de descrições por variedade"""
+    st.subheader("🍷 Descrições por Variedade")
+    
+    # Top 5 variedades
+    top_variedades = df['variety'].value_counts().head(5).index
+    
+    variedade_palavras = {}
+    for variedade in top_variedades:
+        descricoes_variedade = ' '.join(
+            df[df['variety'] == variedade]['description'].dropna().astype(str)
+        )
+        palavras = re.findall(r'\b\w+\b', descricoes_variedade.lower())
+        # Remover palavras comuns
+        stop_words = {'the', 'and', 'of', 'to', 'a', 'in', 'is', 'it', 'that', 'with', 'for', 'as', 'on', 'be', 'at', 'this', 'by', 'i', 'you', 'have', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take', 'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also', 'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us'}
+        palavras_filtradas = [p for p in palavras if p not in stop_words and len(p) > 2]
+        variedade_palavras[variedade] = Counter(palavras_filtradas).most_common(10)
+    
+    # Mostrar palavras por variedade
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("**Palavras mais frequentes por variedade:**")
+        for variedade, palavras in variedade_palavras.items():
+            st.write(f"**{variedade}:**")
+            for palavra, freq in palavras[:5]:
+                st.write(f"  - {palavra}: {freq}")
+            st.write("")
+    
+    with col2:
+        # Gráfico de barras das palavras mais comuns da variedade líder
+        if variedade_palavras:
+            variedade_lider = list(variedade_palavras.keys())[0]
+            palavras, freqs = zip(*variedade_palavras[variedade_lider][:10])
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            bars = ax.bar(range(len(palavras)), freqs, color=CORES_VINHO['branco'], alpha=0.7)
+            ax.set_xlabel('Palavras')
+            ax.set_ylabel('Frequência')
+            ax.set_title(f'Top 10 Palavras - {variedade_lider}')
+            ax.set_xticks(range(len(palavras)))
+            ax.set_xticklabels(palavras, rotation=45, ha='right')
+            
+            # Adicionar valores nas barras
+            for i, bar in enumerate(bars):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 1,
+                       f'{int(height)}', ha='center', va='bottom', fontsize=8)
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+
+
 def create_filters(df):
     """Cria filtros interativos"""
     st.sidebar.header("🔍 Filtros")
@@ -136,6 +325,11 @@ def main():
     if len(df_filtrado) == 0:
         st.warning("Nenhum vinho encontrado com os filtros aplicados. Tente ajustar os filtros.")
         return
+    
+    # Análises
+    plot_analise_variedades(df_filtrado)
+    plot_analise_descricoes(df_filtrado)
+    plot_analise_variedades_descricoes(df_filtrado)
 
 if __name__ == "__main__":
     main()
