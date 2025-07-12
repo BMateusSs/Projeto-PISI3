@@ -451,5 +451,55 @@ def main():
     plot_analise_paises(df_filtrado)
     plot_analise_regioes(df_filtrado)
 
+    # Análise interativa adicional
+    st.header("🎯 Análise Interativa")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Comparação de Variedades")
+        variedades_comparacao = st.multiselect(
+            "Selecione variedades para comparar:",
+            options=sorted(df_filtrado['variety'].unique()),
+            default=sorted(df_filtrado['variety'].value_counts().head(5).index.tolist())
+        )
+        
+        if variedades_comparacao:
+            df_comparacao = df_filtrado[df_filtrado['variety'].isin(variedades_comparacao)]
+            
+            # Mostrar estatísticas das variedades selecionadas
+            st.write("**Estatísticas das variedades selecionadas:**")
+            for variedade in variedades_comparacao:
+                df_var = df_comparacao[df_comparacao['variety'] == variedade]
+                st.write(f"**{variedade}:** {len(df_var)} vinhos")
+                
+                # Top países para esta variedade
+                top_paises_var = df_var['country'].value_counts().head(3)
+                st.write(f"  Top países: {', '.join(top_paises_var.index)}")
+    
+    with col2:
+        st.subheader("Análise Temporal")
+        if 'ano' in df_filtrado.columns:
+            anos_disponiveis = df_filtrado['ano'].dropna().unique()
+            if len(anos_disponiveis) > 0:
+                ano_selecionado = st.selectbox(
+                    "Selecione um ano para análise:",
+                    options=sorted(anos_disponiveis)
+                )
+                
+                df_ano = df_filtrado[df_filtrado['ano'] == ano_selecionado]
+                
+                if len(df_ano) > 0:
+                    st.write(f"**Estatísticas do ano {int(ano_selecionado)}:**")
+                    st.write(f"- Total de vinhos: {len(df_ano)}")
+                    st.write(f"- Países únicos: {df_ano['country'].nunique()}")
+                    st.write(f"- Variedades únicas: {df_ano['variety'].nunique()}")
+                    
+                    # Top variedades do ano
+                    top_variedades_ano = df_ano['variety'].value_counts().head(5)
+                    st.write("**Top variedades do ano:**")
+                    for i, (variedade, count) in enumerate(top_variedades_ano.items(), 1):
+                        st.write(f"{i}. {variedade}: {count}")
+
 if __name__ == "__main__":
     main()
