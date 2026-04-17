@@ -223,7 +223,7 @@ Este projeto demonstra que:
 
 ## Licença
 
-Projeto acadêmico para fins educacionais.
-Repositório para a disciplina PSI3
+* Projeto acadêmico para fins educacionais
+* Repositório para a disciplina PSI3.
 
 ---
